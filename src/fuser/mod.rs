@@ -69,7 +69,7 @@ pub struct FusECS {
 }
 
 pub fn construct_fusecs(params: &FuseParams) -> FuserInternal {
-    let mut options = vec![MountOption::FSName("fuser".to_string())];
+    let mut options = vec![MountOption::FSName("bevy_fuse".to_string())];
     if params.auto_unmount {
         options.push(MountOption::AutoUnmount);
     }
