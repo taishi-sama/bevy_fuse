@@ -1,5 +1,5 @@
 use bevy::{color::palettes::css, prelude::*};
-use libc::ENOENT;
+use fuser::{Errno, FopenFlags, OpenAccMode};
 
 use crate::{
     fuser::FuserState,
@@ -17,29 +17,24 @@ pub fn open_system(
     let root_entity = root_entity.0;
     if let Some(ref mut state) = fuser_state.0 {
         while let Ok((data, reply)) = state.open.try_recv() {
-            trace!("Recieved 1 message!");
+            trace!("Received 1 message!");
             let flags = data.flags;
-            let (_access_mask, read, write) = match flags & libc::O_ACCMODE {
-                libc::O_RDONLY => {
+            let (_access_mask, read, write) = match flags.acc_mode() {
+                OpenAccMode::O_RDONLY => {
                     // Behavior is undefined, but most filesystems return EACCES
-                    if flags & libc::O_TRUNC != 0 {
-                        reply.error(libc::EACCES);
+                    if flags.0 & libc::O_TRUNC != 0 {
+                        reply.error(Errno::EACCES);
                         break;
                     }
-                    if flags & FMODE_EXEC != 0 {
+                    if flags.0 & FMODE_EXEC != 0 {
                         // Open is from internal exec syscall
                         (libc::X_OK, true, false)
                     } else {
                         (libc::R_OK, true, false)
                     }
                 }
-                libc::O_WRONLY => (libc::W_OK, false, true),
-                libc::O_RDWR => (libc::R_OK | libc::W_OK, true, true),
-                // Exactly one access mode flag must be specified
-                _ => {
-                    reply.error(libc::EINVAL);
-                    break;
-                }
+                OpenAccMode::O_WRONLY => (libc::W_OK, false, true),
+                OpenAccMode::O_RDWR => (libc::R_OK | libc::W_OK, true, true),
             };
             let e = inode_to_entity(data.ino, root_entity);
             if let Ok(_metadata) = nodes.get(e) {
@@ -55,10 +50,10 @@ pub fn open_system(
                 ));
                 let fh = entity_to_fh(fh.id());
                 trace!("File descriptor created! fh: {fh}");
-                reply.opened(fh, 0);
+                reply.opened(fh, FopenFlags::empty());
             } else {
                 trace!("Entry not found!");
-                reply.error(ENOENT);
+                reply.error(Errno::ENOENT);
             }
         }
     };

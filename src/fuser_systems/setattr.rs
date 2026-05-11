@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use libc::{EACCES, ENOENT, ENOSYS};
+use fuser::Errno;
 
 use crate::{
     fuser::FuserState,
@@ -19,7 +19,7 @@ pub fn setattr_system(
     let root_entity = root_entity.0;
     if let Some(ref mut state) = fuser_state.0 {
         while let Ok((data, reply)) = state.setattr.try_recv() {
-            trace!("Recieved 1 message!");
+            trace!("Received 1 message!");
             let e = inode_to_entity(data.ino, root_entity);
             if let Ok((metadata, mut f)) = nodes.get_mut(e) {
                 if let Some(size) = data.size {
@@ -31,7 +31,7 @@ pub fn setattr_system(
                                 f.truncate(size);
                             }
                         } else {
-                            reply.error(EACCES);
+                            reply.error(Errno::EACCES);
                             continue;
                         }
                     }
@@ -40,33 +40,33 @@ pub fn setattr_system(
                     }
                 }
                 if let Some(_) = data.gid {
-                    reply.error(ENOSYS);
+                    reply.error(Errno::ENOSYS);
                     continue;
                 }
                 if let Some(_) = data.uid {
-                    reply.error(ENOSYS);
+                    reply.error(Errno::ENOSYS);
                     continue;
                 }
                 if let Some(_) = data.mode {
-                    reply.error(ENOSYS);
+                    reply.error(Errno::ENOSYS);
                     continue;
                 }
                 if let Some(_) = data.atime {
-                    reply.error(ENOSYS);
+                    reply.error(Errno::ENOSYS);
                     continue;
                 }
                 if let Some(_) = data.mtime {
-                    reply.error(ENOSYS);
+                    reply.error(Errno::ENOSYS);
                     continue;
                 }
                 if let Some(_) = data.ctime {
-                    reply.error(ENOSYS);
+                    reply.error(Errno::ENOSYS);
                     continue;
                 }
                 reply.attr(&TTL, &metadata.get_file_attrb_obj_mut(data.ino, f));
             } else {
                 trace!("Entry not found!");
-                reply.error(ENOENT);
+                reply.error(Errno::ENOENT);
             }
         }
     };

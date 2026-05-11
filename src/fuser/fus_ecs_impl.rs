@@ -1,23 +1,23 @@
 use bevy::log::{trace, warn};
-use fuser::Filesystem;
+use fuser::{AccessFlags, BsdFileFlags, CopyFileRangeFlags, Errno, Filesystem, FopenFlags, INodeNo, IoctlFlags, LockOwner, OpenFlags, PollEvents, PollFlags, PollNotifier, RenameFlags, WriteFlags};
 
 use crate::fuser::{FusECS, types::*};
 
 impl Filesystem for FusECS {
     fn init(
         &mut self,
-        _req: &fuser::Request<'_>,
+        _req: &fuser::Request,
         _config: &mut fuser::KernelConfig,
-    ) -> Result<(), libc::c_int> {
+    ) -> Result<(), std::io::Error> {
         Ok(())
     }
 
     fn destroy(&mut self) {}
 
     fn lookup(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         name: &std::ffi::OsStr,
         reply: fuser::ReplyEntry,
     ) {
@@ -34,19 +34,13 @@ impl Filesystem for FusECS {
             .unwrap();
     }
 
-    fn forget(&mut self, _req: &fuser::Request<'_>, _ino: u64, _nlookup: u64) {}
-
-    fn batch_forget(&mut self, req: &fuser::Request<'_>, nodes: &[fuser::fuse_forget_one]) {
-        for node in nodes {
-            self.forget(req, node.nodeid, node.nlookup);
-        }
-    }
+    fn forget(&self, _req: &fuser::Request, _ino: INodeNo, _nlookup: u64) {}
 
     fn getattr(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: Option<u64>,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: Option<fuser::FileHandle>,
         reply: fuser::ReplyAttr,
     ) {
         trace!(
@@ -57,9 +51,9 @@ impl Filesystem for FusECS {
     }
 
     fn setattr(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
         mode: Option<u32>,
         uid: Option<u32>,
         gid: Option<u32>,
@@ -67,11 +61,11 @@ impl Filesystem for FusECS {
         atime: Option<fuser::TimeOrNow>,
         mtime: Option<fuser::TimeOrNow>,
         ctime: Option<std::time::SystemTime>,
-        fh: Option<u64>,
+        fh: Option<fuser::FileHandle>,
         crtime: Option<std::time::SystemTime>,
         chgtime: Option<std::time::SystemTime>,
         bkuptime: Option<std::time::SystemTime>,
-        flags: Option<u32>,
+        flags: Option<BsdFileFlags>,
         reply: fuser::ReplyAttr,
     ) {
         trace!(
@@ -97,18 +91,18 @@ impl Filesystem for FusECS {
                 reply,
             ))
             .unwrap();
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
     }
 
-    fn readlink(&mut self, _req: &fuser::Request<'_>, ino: u64, reply: fuser::ReplyData) {
+    fn readlink(&self, _req: &fuser::Request, ino: INodeNo, reply: fuser::ReplyData) {
         warn!("[Not Implemented] readlink(ino: {ino:#x?})");
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn mknod(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         name: &std::ffi::OsStr,
         mode: u32,
         umask: u32,
@@ -130,13 +124,13 @@ impl Filesystem for FusECS {
                 reply,
             ))
             .unwrap();
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
     }
 
     fn mkdir(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         name: &std::ffi::OsStr,
         mode: u32,
         umask: u32,
@@ -155,35 +149,35 @@ impl Filesystem for FusECS {
                 reply,
             ))
             .unwrap();
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
     }
 
     fn unlink(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         name: &std::ffi::OsStr,
         reply: fuser::ReplyEmpty,
     ) {
         warn!("[Not Implemented] unlink(parent: {parent:#x?}, name: {name:?})",);
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn rmdir(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         name: &std::ffi::OsStr,
         reply: fuser::ReplyEmpty,
     ) {
         warn!("[Not Implemented] rmdir(parent: {parent:#x?}, name: {name:?})",);
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn symlink(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         link_name: &std::ffi::OsStr,
         target: &std::path::Path,
         reply: fuser::ReplyEntry,
@@ -191,54 +185,54 @@ impl Filesystem for FusECS {
         warn!(
             "[Not Implemented] symlink(parent: {parent:#x?}, link_name: {link_name:?}, target: {target:?})",
         );
-        reply.error(libc::EPERM);
+        reply.error(Errno::EPERM);
     }
 
     fn rename(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         name: &std::ffi::OsStr,
-        newparent: u64,
+        newparent: INodeNo,
         newname: &std::ffi::OsStr,
-        flags: u32,
+        flags: RenameFlags,
         reply: fuser::ReplyEmpty,
     ) {
         warn!(
             "[Not Implemented] rename(parent: {parent:#x?}, name: {name:?}, \
             newparent: {newparent:#x?}, newname: {newname:?}, flags: {flags})",
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn link(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        newparent: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        newparent: INodeNo,
         newname: &std::ffi::OsStr,
         reply: fuser::ReplyEntry,
     ) {
         warn!(
             "[Not Implemented] link(ino: {ino:#x?}, newparent: {newparent:#x?}, newname: {newname:?})"
         );
-        reply.error(libc::EPERM);
+        reply.error(Errno::EPERM);
     }
 
-    fn open(&mut self, _req: &fuser::Request<'_>, ino: u64, flags: i32, reply: fuser::ReplyOpen) {
+    fn open(&self, _selfeq: &fuser::Request, ino: INodeNo, flags: OpenFlags, reply: fuser::ReplyOpen) {
         self.open.send((OpenParams { ino, flags }, reply)).unwrap();
         // reply.opened(0, 0);
     }
 
     fn read(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        offset: i64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        offset: u64,
         size: u32,
-        flags: i32,
-        lock_owner: Option<u64>,
+        flags: OpenFlags,
+        lock_owner: Option<LockOwner>,
         reply: fuser::ReplyData,
     ) {
         trace!(
@@ -257,19 +251,19 @@ impl Filesystem for FusECS {
                 reply,
             ))
             .unwrap();
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
     }
 
     fn write(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        offset: i64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        offset: u64,
         data: &[u8],
-        write_flags: u32,
-        flags: i32,
-        lock_owner: Option<u64>,
+        write_flags: WriteFlags,
+        flags: OpenFlags,
+        lock_owner: Option<LockOwner>,
         reply: fuser::ReplyWrite,
     ) {
         trace!(
@@ -290,29 +284,29 @@ impl Filesystem for FusECS {
                 reply,
             ))
             .unwrap();
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
     }
 
     fn flush(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        lock_owner: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        lock_owner: LockOwner,
         reply: fuser::ReplyEmpty,
     ) {
         trace!("[Implemented] flush(ino: {ino:#x?}, fh: {fh}, lock_owner: {lock_owner:?})");
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
         reply.ok();
     }
 
     fn release(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        _flags: i32,
-        _lock_owner: Option<u64>,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        _flags: OpenFlags,
+        _lock_owner: Option<LockOwner>,
         _flush: bool,
         reply: fuser::ReplyEmpty,
     ) {
@@ -323,34 +317,34 @@ impl Filesystem for FusECS {
     }
 
     fn fsync(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
         datasync: bool,
         reply: fuser::ReplyEmpty,
     ) {
         trace!("[Implemented] fsync(ino: {ino:#x?}, fh: {fh}, datasync: {datasync})");
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
         reply.ok();
     }
 
     fn opendir(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        _ino: u64,
-        _flags: i32,
+        &self,
+        _req: &fuser::Request,
+        _ino: INodeNo,
+        _flags: OpenFlags,
         reply: fuser::ReplyOpen,
     ) {
-        reply.opened(0, 0);
+        reply.opened(fuser::FileHandle(0), FopenFlags::empty());
     }
 
     fn readdir(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        offset: i64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        offset: u64,
         reply: fuser::ReplyDirectory,
     ) {
         trace!("[Implemented] readdir(ino: {ino:#x?}, fh: {fh}, offset: {offset})");
@@ -358,45 +352,45 @@ impl Filesystem for FusECS {
             .send((ReaddirParams { ino, offset }, reply))
             .unwrap();
 
-        // reply.error(libc::ENOSYS);
+        // reply.error(Errno::ENOSYS);
     }
 
     fn readdirplus(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        offset: i64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        offset: u64,
         reply: fuser::ReplyDirectoryPlus,
     ) {
         warn!("[Not Implemented] readdirplus(ino: {ino:#x?}, fh: {fh}, offset: {offset})");
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn releasedir(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        _ino: u64,
-        _fh: u64,
-        _flags: i32,
+        &self,
+        _req: &fuser::Request,
+        _ino: INodeNo,
+        _fh: fuser::FileHandle,
+        _flags: OpenFlags,
         reply: fuser::ReplyEmpty,
     ) {
         reply.ok();
     }
 
     fn fsyncdir(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
         datasync: bool,
         reply: fuser::ReplyEmpty,
     ) {
         warn!("[Not Implemented] fsyncdir(ino: {ino:#x?}, fh: {fh}, datasync: {datasync})");
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
-    fn statfs(&mut self, _req: &fuser::Request<'_>, _ino: u64, reply: fuser::ReplyStatfs) {
+    fn statfs(&self, _req: &fuser::Request, _ino: INodeNo, reply: fuser::ReplyStatfs) {
         trace!("[Implemented] statfs");
 
         self.statfs.send(((), reply)).unwrap();
@@ -404,9 +398,9 @@ impl Filesystem for FusECS {
     }
 
     fn setxattr(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
         name: &std::ffi::OsStr,
         _value: &[u8],
         flags: i32,
@@ -417,52 +411,52 @@ impl Filesystem for FusECS {
             "[Not Implemented] setxattr(ino: {ino:#x?}, name: {name:?}, \
             flags: {flags:#x?}, position: {position})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn getxattr(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
         name: &std::ffi::OsStr,
         size: u32,
         reply: fuser::ReplyXattr,
     ) {
         warn!("[Not Implemented] getxattr(ino: {ino:#x?}, name: {name:?}, size: {size})");
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn listxattr(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
         size: u32,
         reply: fuser::ReplyXattr,
     ) {
         warn!("[Not Implemented] listxattr(ino: {ino:#x?}, size: {size})");
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn removexattr(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
         name: &std::ffi::OsStr,
         reply: fuser::ReplyEmpty,
     ) {
         warn!("[Not Implemented] removexattr(ino: {ino:#x?}, name: {name:?})");
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
-    fn access(&mut self, _req: &fuser::Request<'_>, ino: u64, mask: i32, reply: fuser::ReplyEmpty) {
+    fn access(&self, _req: &fuser::Request, ino: INodeNo, mask: AccessFlags, reply: fuser::ReplyEmpty) {
         warn!("[Not Implemented] access(ino: {ino:#x?}, mask: {mask})");
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn create(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: INodeNo,
         name: &std::ffi::OsStr,
         mode: u32,
         umask: u32,
@@ -473,15 +467,15 @@ impl Filesystem for FusECS {
             "[Not Implemented] create(parent: {parent:#x?}, name: {name:?}, mode: {mode}, \
             umask: {umask:#x?}, flags: {flags:#x?})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn getlk(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        lock_owner: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        lock_owner: LockOwner,
         start: u64,
         end: u64,
         typ: i32,
@@ -492,15 +486,15 @@ impl Filesystem for FusECS {
             "[Not Implemented] getlk(ino: {ino:#x?}, fh: {fh}, lock_owner: {lock_owner}, \
             start: {start}, end: {end}, typ: {typ}, pid: {pid})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn setlk(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        lock_owner: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        lock_owner: LockOwner,
         start: u64,
         end: u64,
         typ: i32,
@@ -512,27 +506,27 @@ impl Filesystem for FusECS {
             "[Not Implemented] setlk(ino: {ino:#x?}, fh: {fh}, lock_owner: {lock_owner}, \
             start: {start}, end: {end}, typ: {typ}, pid: {pid}, sleep: {sleep})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn bmap(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
         blocksize: u32,
         idx: u64,
         reply: fuser::ReplyBmap,
     ) {
         warn!("[Not Implemented] bmap(ino: {ino:#x?}, blocksize: {blocksize}, idx: {idx})",);
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn ioctl(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        flags: u32,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        flags: IoctlFlags,
         cmd: u32,
         in_data: &[u8],
         out_size: u32,
@@ -543,33 +537,33 @@ impl Filesystem for FusECS {
             cmd: {cmd}, in_data.len(): {}, out_size: {out_size})",
             in_data.len()
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn poll(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        ph: fuser::PollHandle,
-        events: u32,
-        flags: u32,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        ph: PollNotifier,
+        events: PollEvents,
+        flags: PollFlags,
         reply: fuser::ReplyPoll,
     ) {
         warn!(
             "[Not Implemented] poll(ino: {ino:#x?}, fh: {fh}, \
             ph: {ph:?}, events: {events}, flags: {flags})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn fallocate(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
-        offset: i64,
-        length: i64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
+        offset: u64,
+        length: u64,
         mode: i32,
         reply: fuser::ReplyEmpty,
     ) {
@@ -577,14 +571,14 @@ impl Filesystem for FusECS {
             "[Not Implemented] fallocate(ino: {ino:#x?}, fh: {fh}, \
             offset: {offset}, length: {length}, mode: {mode})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn lseek(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino: u64,
-        fh: u64,
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        fh: fuser::FileHandle,
         offset: i64,
         whence: i32,
         reply: fuser::ReplyLseek,
@@ -593,27 +587,27 @@ impl Filesystem for FusECS {
             "[Not Implemented] lseek(ino: {ino:#x?}, fh: {fh}, \
             offset: {offset}, whence: {whence})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 
     fn copy_file_range(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        ino_in: u64,
-        fh_in: u64,
-        offset_in: i64,
-        ino_out: u64,
-        fh_out: u64,
-        offset_out: i64,
+        &self,
+        _req: &fuser::Request,
+        ino_in: INodeNo,
+        fh_in: fuser::FileHandle,
+        offset_in: u64,
+        ino_out: INodeNo,
+        fh_out: fuser::FileHandle,
+        offset_out: u64,
         len: u64,
-        flags: u32,
+        flags: CopyFileRangeFlags,
         reply: fuser::ReplyWrite,
     ) {
         warn!(
             "[Not Implemented] copy_file_range(ino_in: {ino_in:#x?}, fh_in: {fh_in}, \
             offset_in: {offset_in}, ino_out: {ino_out:#x?}, fh_out: {fh_out}, \
-            offset_out: {offset_out}, len: {len}, flags: {flags})"
+            offset_out: {offset_out}, len: {len}, flags: {flags:?})"
         );
-        reply.error(libc::ENOSYS);
+        reply.error(Errno::ENOSYS);
     }
 }

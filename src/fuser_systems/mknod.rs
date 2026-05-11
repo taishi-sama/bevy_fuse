@@ -1,6 +1,6 @@
 use avian2d::prelude::{AngularDamping, Collider, DistanceJoint, LinearDamping, RigidBody};
 use bevy::prelude::*;
-use libc::{EEXIST, ENOENT, ENOTDIR};
+use fuser::Errno;
 
 use crate::{
     fuser::FuserState,
@@ -30,7 +30,7 @@ pub fn mknod_system(
     let root_entity = root_entity.0;
     if let Some(ref mut state) = fuser_state.0 {
         while let Ok((data, reply)) = state.mknod.try_recv() {
-            trace!("Recieved 1 message!");
+            trace!("Received 1 message!");
             let parent_entity = inode_to_entity(data.parent, root_entity);
             if let Ok((metadata, dir, content, gt)) = parent.get(parent_entity) {
                 trace!("Found entry, replying...! {metadata:?}");
@@ -48,7 +48,7 @@ pub fn mknod_system(
                         }
                     }
                     if found.is_some() {
-                        reply.error(EEXIST);
+                        reply.error(Errno::EEXIST);
                         continue;
                     }
                     let file = File::default();
@@ -77,14 +77,14 @@ pub fn mknod_system(
                     ));
                     let attr = inode
                         .get_file_attrb_obj(entity_to_inode(new_entity, root_entity), Some(&file));
-                    reply.entry(&TTL, &attr, 0);
+                    reply.entry(&TTL, &attr, fuser::Generation(0));
                 } else {
-                    reply.error(ENOTDIR);
+                    reply.error(Errno::ENOTDIR);
                 }
                 // reply.attr(&TTL, &metadata.get_file_attrb(data));
             } else {
                 trace!("Entry not found!");
-                reply.error(ENOENT);
+                reply.error(Errno::ENOENT);
             }
         }
     };

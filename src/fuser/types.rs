@@ -1,6 +1,6 @@
 use std::{ffi::OsString, time::SystemTime};
 
-use fuser::TimeOrNow;
+use fuser::{OpenFlags, TimeOrNow};
 
 use crate::fuser::{Fh, Inode};
 
@@ -18,13 +18,13 @@ pub struct LookupParams {
 #[derive(Debug)]
 pub struct ReaddirParams {
     pub ino: Inode,
-    pub offset: i64,
+    pub offset: u64,
 }
 
 #[derive(Debug)]
 pub struct OpenParams {
     pub ino: Inode,
-    pub flags: i32,
+    pub flags: OpenFlags,
 }
 
 #[derive(Debug)]
@@ -37,18 +37,18 @@ pub struct ReleaseParams {
 pub struct ReadParams {
     pub ino: Inode,
     pub fh: Fh,
-    pub offset: i64,
+    pub offset: u64,
     pub size: u32,
-    pub flags: i32,
+    pub flags: OpenFlags,
 }
 
 #[derive(Debug)]
 pub struct WriteParams {
     pub ino: Inode,
     pub fh: Fh,
-    pub offset: i64,
+    pub offset: u64,
     pub data: Vec<u8>,
-    pub flags: i32,
+    pub flags: OpenFlags,
 }
 
 #[derive(Debug)]
@@ -61,7 +61,7 @@ pub struct SetattrParams {
     pub atime: Option<TimeOrNow>,
     pub mtime: Option<TimeOrNow>,
     pub ctime: Option<SystemTime>,
-    pub fh: Option<u64>,
+    pub fh: Option<Fh>,
     pub crtime: Option<SystemTime>,
     pub chgtime: Option<SystemTime>,
     pub bkuptime: Option<SystemTime>,

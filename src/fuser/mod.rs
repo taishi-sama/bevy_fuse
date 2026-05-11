@@ -8,8 +8,7 @@ use std::{
 
 use bevy::prelude::*;
 use fuser::{
-    BackgroundSession, MountOption, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry,
-    ReplyOpen, ReplyStatfs, ReplyWrite,
+    BackgroundSession, Config, FileHandle, INodeNo, MountOption, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyStatfs, ReplyWrite
 };
 
 use crate::fuser::types::*;
@@ -23,8 +22,8 @@ pub struct FuseParams {
 #[derive(Debug, Default)]
 pub struct FuserState(pub Option<FuserInternal>);
 
-pub type Inode = u64;
-pub type Fh = u64;
+pub type Inode = INodeNo;
+pub type Fh = FileHandle;
 
 type Lookup = (LookupParams, ReplyEntry);
 type Getattr = (GetAttrParams, ReplyAttr);
@@ -69,10 +68,13 @@ pub struct FusECS {
 }
 
 pub fn construct_fusecs(params: &FuseParams) -> FuserInternal {
-    let mut options = vec![MountOption::FSName("bevy_fuse".to_string())];
+    let mut mount_options = vec![MountOption::FSName("bevy_fuse".to_string())];
     if params.auto_unmount {
-        options.push(MountOption::AutoUnmount);
+        mount_options.push(MountOption::AutoUnmount);
     }
+    let mut options = Config::default();
+    options.clone_fd = false;
+    options.mount_options = mount_options;
     let lookup_pair = channel();
     let getattr_pair = channel();
     let readdir_pair = channel();

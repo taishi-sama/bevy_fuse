@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use libc::{EACCES, ENOENT};
+use fuser::Errno;
 
 use crate::{
     fuser::FuserState,
@@ -16,7 +16,7 @@ pub fn read_system(
     let root_entity = root_entity.0;
     if let Some(ref mut state) = fuser_state.0 {
         while let Ok((data, reply)) = state.read.try_recv() {
-            trace!("Recieved 1 message!");
+            trace!("Received 1 message!");
             let e = inode_to_entity(data.ino, root_entity);
             if let Ok((_metadata, f)) = nodes.get(e) {
                 let fh = fh_to_entity(data.fh);
@@ -37,15 +37,15 @@ pub fn read_system(
                             reply.data(&[])
                         }
                     } else {
-                        reply.error(EACCES);
+                        reply.error(Errno::EACCES);
                     }
                 } else {
                     trace!("Handle not found!");
-                    reply.error(ENOENT);
+                    reply.error(Errno::ENOENT);
                 }
             } else {
                 trace!("Entry not found!");
-                reply.error(ENOENT);
+                reply.error(Errno::ENOENT);
             }
         }
     };
